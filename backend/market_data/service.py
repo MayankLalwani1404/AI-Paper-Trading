@@ -138,8 +138,10 @@ class MarketDataService:
             if df.empty:
                 return None
 
-            # Normalize columns
+            # Normalize columns - handle multi-index from yfinance
             df = df.reset_index()
+            # Flatten column names if multi-index (tuple)
+            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
             df.columns = [col.lower() for col in df.columns]
 
             # Ensure required columns exist
@@ -231,8 +233,9 @@ class MarketDataService:
                 # Convert to list of dictionaries
                 ohlcv_list = []
                 for _, row in df.iterrows():
+                    date_val = row.get("date") if isinstance(row, pd.Series) else row["date"]
                     ohlcv_list.append({
-                        "date": row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"]),
+                        "date": date_val.isoformat() if hasattr(date_val, "isoformat") else str(date_val),
                         "open": float(row["open"]),
                         "high": float(row["high"]),
                         "low": float(row["low"]),

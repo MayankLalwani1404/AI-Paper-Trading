@@ -1,0 +1,27 @@
+# Simplified requirements for initial setup
+# Install in order to avoid dependency conflicts
+
+# Core Framework (install first)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Caching
+redis>=5.0.0
+
+# Market Data
+yfinance>=0.2.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+python-multipart>=0.0.6
