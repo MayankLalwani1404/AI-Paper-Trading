@@ -25,6 +25,7 @@ class SymbolMetadata:
     name: str
     sector: Optional[str] = None
     country: str = "US"
+    asset_class: str = "EQUITY"  # EQUITY | INDEX | FUTURE | OPTION | CRYPTO
 
 
 class SymbolRegistry:
@@ -50,12 +51,12 @@ class SymbolRegistry:
         "HDFC.NS": SymbolMetadata("HDFC.NS", MarketType.NSE, "HDFC Bank", "Finance", "IN"),
         
         # Crypto
-        "BTCUSDT": SymbolMetadata("BTCUSDT", MarketType.CRYPTO, "Bitcoin", "Cryptocurrency", "GLOBAL"),
-        "ETHUSDT": SymbolMetadata("ETHUSDT", MarketType.CRYPTO, "Ethereum", "Cryptocurrency", "GLOBAL"),
+        "BTCUSDT": SymbolMetadata("BTCUSDT", MarketType.CRYPTO, "Bitcoin", "Cryptocurrency", "GLOBAL", "CRYPTO"),
+        "ETHUSDT": SymbolMetadata("ETHUSDT", MarketType.CRYPTO, "Ethereum", "Cryptocurrency", "GLOBAL", "CRYPTO"),
         
         # Indices
-        "^GSPC": SymbolMetadata("^GSPC", MarketType.INDEX, "S&P 500", None, "US"),
-        "^NSEI": SymbolMetadata("^NSEI", MarketType.INDEX, "NIFTY 50", None, "IN"),
+        "^GSPC": SymbolMetadata("^GSPC", MarketType.INDEX, "S&P 500", None, "US", "INDEX"),
+        "^NSEI": SymbolMetadata("^NSEI", MarketType.INDEX, "NIFTY 50", None, "IN", "INDEX"),
     }
 
     @staticmethod

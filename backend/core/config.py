@@ -14,6 +14,11 @@ class Settings(BaseSettings):
 
     # Ollama
     OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3"
+
+    # Market data provider
+    MARKET_DATA_PROVIDER: str = "alpha_vantage"  # alpha_vantage | yahoo | local
+    ALPHA_VANTAGE_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

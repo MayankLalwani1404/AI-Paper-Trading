@@ -196,6 +196,7 @@ async def get_symbol_info(symbol: str):
             "name": metadata.name,
             "sector": metadata.sector,
             "country": metadata.country,
+            "asset_class": metadata.asset_class,
             "registered": True
         }
 

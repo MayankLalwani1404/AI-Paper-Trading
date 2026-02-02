@@ -7,9 +7,11 @@ import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 import os
+import requests
 import yfinance as yf
 from backend.market_data.symbols import SYMBOL_REGISTRY, MarketType
 from backend.market_data.cache import market_data_cache
+from backend.core.config import settings
 
 
 class MarketDataService:
@@ -83,8 +85,15 @@ class MarketDataService:
             if cached:
                 return cached
 
+        # Try Alpha Vantage (if configured)
+        if settings.MARKET_DATA_PROVIDER == "alpha_vantage" and settings.ALPHA_VANTAGE_API_KEY:
+            ohlcv = cls._fetch_from_alpha_vantage(symbol, interval)
+        else:
+            ohlcv = None
+
         # Try Yahoo Finance
-        ohlcv = cls._fetch_from_yahoo_finance(symbol, interval, start_date, end_date)
+        if not ohlcv:
+            ohlcv = cls._fetch_from_yahoo_finance(symbol, interval, start_date, end_date)
         if ohlcv:
             # Cache the result
             market_data_cache.set_ohlcv(symbol, interval, ohlcv)
@@ -165,6 +174,64 @@ class MarketDataService:
 
         except Exception as e:
             print(f"Error fetching from Yahoo Finance for {symbol}: {e}")
+            return None
+
+    @staticmethod
+    def _fetch_from_alpha_vantage(
+        symbol: str,
+        interval: str = "1d",
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch data from Alpha Vantage (free tier).
+        Supports daily/weekly/monthly. Intraday is limited.
+        """
+        try:
+            api_key = settings.ALPHA_VANTAGE_API_KEY
+            if not api_key:
+                return None
+
+            function_map = {
+                "1d": "TIME_SERIES_DAILY_ADJUSTED",
+                "1w": "TIME_SERIES_WEEKLY",
+                "1mo": "TIME_SERIES_MONTHLY",
+            }
+            function = function_map.get(interval, "TIME_SERIES_DAILY_ADJUSTED")
+
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function": function,
+                "symbol": symbol,
+                "apikey": api_key,
+                "outputsize": "compact",
+            }
+            response = requests.get(url, params=params, timeout=20)
+            response.raise_for_status()
+            data = response.json()
+
+            # Detect time series key
+            ts_key = None
+            for key in data.keys():
+                if "Time Series" in key:
+                    ts_key = key
+                    break
+            if not ts_key:
+                return None
+
+            series = data.get(ts_key, {})
+            ohlcv_list = []
+            for date_str, values in sorted(series.items()):
+                ohlcv_list.append({
+                    "date": date_str,
+                    "open": float(values.get("1. open", 0)),
+                    "high": float(values.get("2. high", 0)),
+                    "low": float(values.get("3. low", 0)),
+                    "close": float(values.get("4. close", 0)),
+                    "volume": float(values.get("6. volume", values.get("5. volume", 0))),
+                })
+
+            return ohlcv_list if ohlcv_list else None
+        except Exception as e:
+            print(f"Error fetching from Alpha Vantage for {symbol}: {e}")
             return None
 
     @classmethod
@@ -310,6 +377,28 @@ class MarketDataService:
             if (query_lower in symbol.lower() or
                 query_lower in metadata.name.lower()):
                 matches.append(symbol)
+        if matches:
+            return matches
+
+        # Fallback to Alpha Vantage search (if configured)
+        if settings.ALPHA_VANTAGE_API_KEY:
+            try:
+                url = "https://www.alphavantage.co/query"
+                params = {
+                    "function": "SYMBOL_SEARCH",
+                    "keywords": query,
+                    "apikey": settings.ALPHA_VANTAGE_API_KEY,
+                }
+                response = requests.get(url, params=params, timeout=20)
+                response.raise_for_status()
+                data = response.json()
+                best = data.get("bestMatches", [])
+                for item in best:
+                    symbol = item.get("1. symbol")
+                    if symbol:
+                        matches.append(symbol)
+            except Exception:
+                pass
 
         return matches
 
