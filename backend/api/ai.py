@@ -7,7 +7,18 @@ from backend.ai.patterns import detect_patterns
 from backend.market_data.service import market_data_service
 from backend.market_data.symbols import MarketType
 
+# Import ML routes
+try:
+    from backend.api.ml import router as ml_router
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
+
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Include ML service routes if available
+if HAS_ML:
+    router.include_router(ml_router)
 
 
 class AIQueryRequest(BaseModel):

@@ -400,6 +400,65 @@ For issues or questions:
 
 ---
 
+## 🤖 ML Trading System Integration
+
+The AI paper trading platform now includes a **production-grade hybrid ML system** that combines:
+
+### ML Architecture
+- **CNN**: Candlestick pattern recognition from chart images
+- **LSTM**: Time-series direction prediction with attention mechanism
+- **XGBoost**: Classification on 40+ technical indicators
+- **Ensemble**: Weighted voting (CNN 0.25 + LSTM 0.35 + XGBoost 0.40)
+
+### Data Coverage
+- **US Market**: 4,000+ stocks + 900+ ETFs
+- **Indian Market**: 1,000+ NSE stocks + 52 BSE indices
+- **Cryptocurrency**: BTCUSDT and other crypto pairs
+- **Multi-timeframe**: 5m, 15m, 1h, 4h, 1d, 1w, 1M
+
+### Anti-Overfitting (6 Techniques)
+1. Walk-forward validation (time-aware, no shuffling)
+2. Overfitting detection with early stopping
+3. Incremental learning with experience replay
+4. Progressive resizing
+5. Market regime detection
+6. Stochastic batch shuffling
+
+### API Endpoints
+```
+POST   /api/ai/predict
+POST   /api/ai/predict-batch
+POST   /api/ai/train
+POST   /api/ai/retrain-incremental
+GET    /api/ai/models
+POST   /api/ai/models/{version}/activate
+GET    /api/ai/explain/{symbol}
+GET    /api/ai/evaluate/{symbol}
+GET    /api/ai/health
+```
+
+### Quick Start (ML)
+```bash
+# Validate system
+python validate_ml_system.py
+
+# Train models
+python backend/ai/examples.py
+
+# Make prediction via API
+curl -X POST http://localhost:8000/api/ai/predict \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "AAPL", "timeframe": "1d"}'
+```
+
+### ML Documentation
+- Full API: `backend/ai/ML_README.md`
+- Examples: `backend/ai/examples.py`
+- Config: `backend/ai/config.py`
+- Summary: `ML_SYSTEM_SUMMARY.md`
+
+---
+
 ## 🎉 Congratulations!
 
 Your AI Paper Trading Platform is ready! 
