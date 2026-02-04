@@ -34,8 +34,17 @@ class MLService:
         self.feature_engineer = FeatureEngineer(lookback=50)
         self.training_pipeline = TrainingPipeline()
         self.model_manager = ModelVersionManager(model_path)
-        
+
+        # Try loading latest model version if available
         self.ensemble_model = None
+        try:
+            versions = self.model_manager.list_versions()
+            if versions:
+                latest = sorted(versions)[-1]
+                self.ensemble_model = self.model_manager.load_version(latest)
+                logger.info(f"Loaded latest model version: {latest}")
+        except Exception as e:
+            logger.warning(f"No model loaded at startup: {e}")
         self.prediction_cache = {}
         self.performance_metrics = {}
         
@@ -57,14 +66,30 @@ class MLService:
         try:
             # Load data
             all_data = self.data_loader.load_all_symbols("all")
-            if symbol not in all_data:
+
+            if self.ensemble_model is None:
+                return {
+                    'error': 'Model not trained/loaded. Train first via /ai/train.',
+                    'signal': None,
+                    'confidence': 0
+                }
+            
+            # Find symbol (case-insensitive)
+            symbol_lower = symbol.lower()
+            matching_symbol = None
+            for key in all_data.keys():
+                if key.lower() == symbol_lower:
+                    matching_symbol = key
+                    break
+            
+            if not matching_symbol:
                 return {
                     'error': f'Symbol {symbol} not found',
                     'signal': None,
                     'confidence': 0
                 }
             
-            df = all_data[symbol]
+            df = all_data[matching_symbol]
             df_resampled = self.data_loader.resample_to_timeframe(df, timeframe)
             
             # Create features

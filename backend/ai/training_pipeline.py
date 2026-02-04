@@ -273,7 +273,15 @@ class TrainingPipeline:
         
         # Trim features to match labels
         X = X[:len(y)]
-        
+
+        # Drop rows with NaN/inf and keep labels aligned
+        if len(X) == 0:
+            return X, y[:0]
+
+        valid_mask = np.isfinite(X).all(axis=1)
+        X = X[valid_mask]
+        y = y[valid_mask]
+
         return X, y
     
     def train_with_walk_forward(self, symbols: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]],

@@ -12,7 +12,7 @@ import asyncio
 from backend.ai.ml_service import get_ml_service
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/ai", tags=["ai"])
+router = APIRouter(prefix="", tags=["ai"])
 
 
 # ===== Request/Response Models =====

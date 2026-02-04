@@ -89,7 +89,9 @@ class TechnicalIndicators:
     def vortex(df: pd.DataFrame, period: int = 14) -> Tuple[pd.Series, pd.Series]:
         """Vortex Indicator"""
         vi = ta.trend.VortexIndicator(high=df['High'], low=df['Low'], close=df['Close'], window=period)
-        return vi.vortex_indicator_positive(), vi.vortex_indicator_negative()
+        pos_fn = getattr(vi, "vortex_indicator_pos", None) or getattr(vi, "vortex_indicator_positive")
+        neg_fn = getattr(vi, "vortex_indicator_neg", None) or getattr(vi, "vortex_indicator_negative")
+        return pos_fn(), neg_fn()
 
 
 class CandlestickPatterns:
