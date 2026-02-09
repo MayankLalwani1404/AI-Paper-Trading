@@ -38,10 +38,10 @@ export const indicatorsAPI = {
     api.post('/indicators/calculate', { symbol, indicator, ...params }),
   
   getAllIndicators: (symbol: string, period?: number) =>
-    api.get('/indicators/all', { params: { symbol, period } }),
+    api.get(`/indicators/all/${symbol}`, { params: { period } }),
   
   getTradeSignals: (symbol: string) =>
-    api.get('/indicators/signals', { params: { symbol } }),
+    api.get(`/indicators/signals/${symbol}`),
 };
 
 // Trading API

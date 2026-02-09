@@ -9,11 +9,19 @@ export default function Trading() {
   const [formData, setFormData] = useState({
     symbol: 'AAPL',
     quantity: 1,
-    orderType: 'BUY',
+    side: 'BUY',
+    orderType: 'MARKET',
     orderPrice: 150,
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const formatError = (error: any, fallback: string) => {
+    const detail = error?.response?.data?.detail;
+    if (!detail) return fallback;
+    if (typeof detail === 'string') return detail;
+    return JSON.stringify(detail);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -32,6 +40,7 @@ export default function Trading() {
       const response = await tradingAPI.placeOrder({
         symbol: formData.symbol,
         quantity: formData.quantity,
+        side: formData.side,
         order_type: formData.orderType,
         price: formData.orderPrice,
       });
@@ -41,12 +50,12 @@ export default function Trading() {
           type: 'success',
           text: `Order placed successfully! Order ID: ${response.data.id}`,
         });
-        setFormData({ symbol: 'AAPL', quantity: 1, orderType: 'BUY', orderPrice: 150 });
+        setFormData({ symbol: 'AAPL', quantity: 1, side: 'BUY', orderType: 'MARKET', orderPrice: 150 });
       }
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.detail || 'Failed to place order',
+        text: formatError(error, 'Failed to place order'),
       });
     } finally {
       setIsLoading(false);
@@ -95,6 +104,19 @@ export default function Trading() {
 
               {/* Order Type */}
               <div>
+                <label className="block text-sm font-medium text-dark mb-2">Side</label>
+                <select
+                  name="side"
+                  value={formData.side}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+                >
+                  <option value="BUY">BUY</option>
+                  <option value="SELL">SELL</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-dark mb-2">Order Type</label>
                 <select
                   name="orderType"
@@ -102,8 +124,8 @@ export default function Trading() {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                 >
-                  <option value="BUY">BUY</option>
-                  <option value="SELL">SELL</option>
+                  <option value="MARKET">MARKET</option>
+                  <option value="LIMIT">LIMIT</option>
                 </select>
               </div>
 
@@ -157,12 +179,12 @@ export default function Trading() {
                 type="submit"
                 disabled={isLoading}
                 className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${
-                  formData.orderType === 'BUY'
+                  formData.side === 'BUY'
                     ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-400'
                     : 'bg-red-600 hover:bg-red-700 disabled:bg-gray-400'
                 }`}
               >
-                {isLoading ? 'Placing Order...' : `${formData.orderType} ${formData.quantity} ${formData.symbol}`}
+                {isLoading ? 'Placing Order...' : `${formData.side} ${formData.quantity} ${formData.symbol}`}
               </button>
             </form>
           </div>

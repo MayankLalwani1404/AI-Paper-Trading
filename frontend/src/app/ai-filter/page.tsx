@@ -13,15 +13,26 @@ export default function AIFilter() {
   const [error, setError] = useState<string>('');
   const [spec, setSpec] = useState<any>(null);
 
+  const formatError = (err: any, fallback: string) => {
+    const detail = err?.response?.data?.detail;
+    if (!detail) return fallback;
+    if (typeof detail === 'string') return detail;
+    return JSON.stringify(detail);
+  };
+
   const runFilter = async () => {
     setLoading(true);
     setError('');
+    setResults([]);
+    setSpec(null);
     try {
       const response = await aiAPI.filter(query, market, limit);
       setResults(response.data.results || []);
       setSpec(response.data.spec || null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to run filter');
+      setError(formatError(err, 'Failed to run filter'));
+      setResults([]);
+      setSpec(null);
     } finally {
       setLoading(false);
     }

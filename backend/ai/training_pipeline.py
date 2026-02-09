@@ -256,13 +256,20 @@ class TrainingPipeline:
                             features_df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare features and labels with no lookahead bias"""
         
-        X = features_df[features_df.columns.difference(['Close', 'High', 'Low', 'Open', 'Volume'])].values
+        # First, drop NaN rows from features_df to get clean indices
+        features_df_clean = features_df.dropna()
+        
+        # Get feature values without OHLCV columns
+        X = features_df_clean[features_df_clean.columns.difference(['Close', 'High', 'Low', 'Open', 'Volume'])].values
+        
+        # Use the cleaned indices to get corresponding df rows
+        df_aligned = df.loc[features_df_clean.index]
         
         # Create labels: look ahead 'lookahead' bars
-        y = np.zeros(len(df) - self.lookahead, dtype=int)
+        y = np.zeros(len(df_aligned) - self.lookahead, dtype=int)
         
         for i in range(len(y)):
-            future_return = (df.iloc[i + self.lookahead]['Close'] - df.iloc[i]['Close']) / df.iloc[i]['Close']
+            future_return = (df_aligned.iloc[i + self.lookahead]['Close'] - df_aligned.iloc[i]['Close']) / df_aligned.iloc[i]['Close']
             
             if future_return > 0.01:  # >1% return
                 y[i] = 2  # BUY
@@ -274,7 +281,7 @@ class TrainingPipeline:
         # Trim features to match labels
         X = X[:len(y)]
 
-        # Drop rows with NaN/inf and keep labels aligned
+        # Drop any remaining NaN/inf and keep labels aligned
         if len(X) == 0:
             return X, y[:0]
 

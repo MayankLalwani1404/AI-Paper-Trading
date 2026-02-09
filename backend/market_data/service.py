@@ -4,7 +4,7 @@ Handles OHLCV data fetching, caching, and normalization across markets.
 """
 
 import pandas as pd
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 from datetime import datetime, timedelta
 import os
 import requests
@@ -53,6 +53,8 @@ class MarketDataService:
             "columns": {"date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}
         }
     }
+
+    _dataset_symbol_cache: Optional[Dict[MarketType, Set[str]]] = None
 
     @classmethod
     def fetch_ohlcv(
@@ -131,8 +133,14 @@ class MarketDataService:
             if not end_date:
                 end_date = datetime.now().strftime("%Y-%m-%d")
             if not start_date:
-                # Default to 1 year of data
-                start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+                # Use shorter history for intraday intervals to avoid provider limits
+                intraday_intervals = {"1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h"}
+                if interval in intraday_intervals:
+                    days = 7 if interval == "1m" else 60
+                    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+                else:
+                    # Default to 1 year of data
+                    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
 
             # Fetch data
             ticker = yf.Ticker(symbol)
@@ -152,6 +160,10 @@ class MarketDataService:
             # Flatten column names if multi-index (tuple)
             df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
             df.columns = [col.lower() for col in df.columns]
+
+            # Support intraday index naming
+            if "datetime" in df.columns and "date" not in df.columns:
+                df = df.rename(columns={"datetime": "date"})
 
             # Ensure required columns exist
             required_cols = {"date", "open", "high", "low", "close", "volume"}
@@ -277,6 +289,11 @@ class MarketDataService:
                     df = df[df["symbol"].str.upper() == symbol]
 
                 if df.empty:
+                    continue
+
+                # Ensure required columns exist
+                required_cols = {"date", "open", "high", "low", "close", "volume"}
+                if not required_cols.issubset(set(df.columns)):
                     continue
 
                 # Convert date column to datetime
@@ -413,9 +430,92 @@ class MarketDataService:
         Returns:
             List of available symbols
         """
+        registry_symbols = set(SYMBOL_REGISTRY.get_all_symbols(market)) if market else set(SYMBOL_REGISTRY.get_all_symbols())
+        dataset_symbols_by_market = cls._get_dataset_symbols()
+
         if market:
-            return list(SYMBOL_REGISTRY.get_all_symbols(market))
-        return list(SYMBOL_REGISTRY.get_all_symbols())
+            registry_symbols.update(dataset_symbols_by_market.get(market, set()))
+        else:
+            for symbols in dataset_symbols_by_market.values():
+                registry_symbols.update(symbols)
+
+        return sorted(registry_symbols)
+
+    @classmethod
+    def _get_dataset_symbols(cls) -> Dict[MarketType, Set[str]]:
+        """
+        Scan dataset folders to build a list of symbols by market.
+        """
+        if cls._dataset_symbol_cache is not None:
+            return cls._dataset_symbol_cache
+
+        symbols_by_market: Dict[MarketType, Set[str]] = {market: set() for market in MarketType}
+        base_path = cls.DATASET_BASE_PATH
+
+        if not os.path.isdir(base_path):
+            cls._dataset_symbol_cache = symbols_by_market
+            return symbols_by_market
+
+        def add_symbol(raw_symbol: str, market: MarketType):
+            if not raw_symbol:
+                return
+            symbol = raw_symbol.upper()
+            if symbol.endswith(".US"):
+                symbol = symbol[:-3]
+            symbols_by_market[market].add(symbol)
+
+        # Use known mappings when files exist
+        for filename, config in cls.DATASET_MAPPING.items():
+            file_path = os.path.join(base_path, filename)
+            if os.path.exists(file_path):
+                symbol = config.get("symbol")
+                market = config.get("market", MarketType.US)
+                if symbol and symbol != "VARIOUS":
+                    add_symbol(symbol, market)
+
+        folder_market_map = {
+            "Stocks": MarketType.US,
+            "ETFs": MarketType.US,
+            "SCRIP": MarketType.NSE,
+            "INDEX": MarketType.INDEX,
+        }
+
+        for folder, market in folder_market_map.items():
+            folder_path = os.path.join(base_path, folder)
+            if not os.path.isdir(folder_path):
+                continue
+            for entry in os.listdir(folder_path):
+                if not entry.lower().endswith((".csv", ".txt")):
+                    continue
+                stem = os.path.splitext(entry)[0]
+                parts = stem.split(".")
+                symbol_part = parts[0]
+                suffix = parts[1].lower() if len(parts) > 1 else ""
+
+                if suffix == "ns":
+                    add_symbol(f"{symbol_part}.NS", MarketType.NSE)
+                elif suffix == "bo":
+                    add_symbol(f"{symbol_part}.BO", MarketType.BSE)
+                else:
+                    add_symbol(symbol_part, market)
+
+        # Scan root-level datasets (not covered by mapping)
+        for entry in os.listdir(base_path):
+            path = os.path.join(base_path, entry)
+            if os.path.isdir(path):
+                continue
+            if not entry.lower().endswith((".csv", ".txt")):
+                continue
+            if entry in cls.DATASET_MAPPING:
+                continue
+
+            stem = os.path.splitext(entry)[0]
+            symbol = stem.split("_")[0] if "_" in stem else stem
+            market = MarketType.CRYPTO if symbol.upper().endswith("USDT") else MarketType.US
+            add_symbol(symbol, market)
+
+        cls._dataset_symbol_cache = symbols_by_market
+        return symbols_by_market
 
     @classmethod
     def validate_symbol(cls, symbol: str) -> Tuple[bool, Optional[str]]:

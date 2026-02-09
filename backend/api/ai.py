@@ -66,13 +66,16 @@ def ai_filter(request: AIQueryRequest):
         matches = []
 
         for symbol in symbols[: max(10, request.limit * 2)]:
-            ohlcv = market_data_service.fetch_ohlcv(symbol, interval="1d")
-            if not ohlcv:
+            try:
+                ohlcv = market_data_service.fetch_ohlcv(symbol, interval="1d")
+                if not ohlcv:
+                    continue
+                if apply_filter(ohlcv, spec):
+                    matches.append(symbol)
+                if len(matches) >= request.limit:
+                    break
+            except Exception:
                 continue
-            if apply_filter(ohlcv, spec):
-                matches.append(symbol)
-            if len(matches) >= request.limit:
-                break
 
         return {
             "query": request.query,

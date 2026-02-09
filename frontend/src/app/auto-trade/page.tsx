@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { tradingAPI } from '@/lib/api';
+import { BUILT_IN_STRATEGIES, getStrategyById } from '@/lib/strategies';
 
 export default function AutoTrade() {
   const [form, setForm] = useState({
@@ -16,8 +17,33 @@ export default function AutoTrade() {
     trailingStopPct: 3,
     timeExitDays: 5,
   });
-  const [message, setMessage] = useState<string>('');
+  const [selectedStrategyId, setSelectedStrategyId] = useState<string>('');
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('selected_strategy');
+    if (stored) {
+      setSelectedStrategyId(stored);
+      const strat = getStrategyById(stored);
+      if (strat) {
+        setForm((prev) => ({
+          ...prev,
+          stopLossPct: strat.defaults.stopLossPct,
+          takeProfitPct: strat.defaults.takeProfitPct,
+          trailingStopPct: strat.defaults.trailingStopPct,
+          timeExitDays: strat.defaults.timeExitDays,
+        }));
+      }
+    }
+  }, []);
+
+  const formatError = (err: any, fallback: string) => {
+    const detail = err?.response?.data?.detail;
+    if (!detail) return fallback;
+    if (typeof detail === 'string') return detail;
+    return JSON.stringify(detail);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -32,7 +58,7 @@ export default function AutoTrade() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setMessage(null);
     try {
       const exitRules = {
         stop_loss_pct: form.stopLossPct,
@@ -48,9 +74,15 @@ export default function AutoTrade() {
         price: form.price,
         exit_rules: exitRules,
       });
-      setMessage(`Order placed. ID: ${response.data.id}`);
+      setMessage({
+        type: 'success',
+        text: `Order placed. ID: ${response.data.id}`,
+      });
     } catch (err: any) {
-      setMessage(err.response?.data?.detail || 'Failed to place order');
+      setMessage({
+        type: 'error',
+        text: formatError(err, 'Failed to place order'),
+      });
     } finally {
       setLoading(false);
     }
@@ -63,7 +95,11 @@ export default function AutoTrade() {
         <div className="max-w-3xl">
           <h1 className="text-4xl font-bold text-dark mb-8">Auto‑Trade</h1>
 
-          {message && <div className="mb-4 text-blue-600">{message}</div>}
+          {message && (
+            <div className={`mb-4 rounded-lg p-3 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {message.text}
+            </div>
+          )}
 
           <form onSubmit={submit} className="bg-white rounded-lg shadow p-6 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -88,6 +124,39 @@ export default function AutoTrade() {
                   <option value="SELL">SELL</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-dark mb-2">Strategy</label>
+              <select
+                value={selectedStrategyId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedStrategyId(id);
+                  const strat = getStrategyById(id);
+                  if (strat) {
+                    localStorage.setItem('selected_strategy', id);
+                    setForm((prev) => ({
+                      ...prev,
+                      stopLossPct: strat.defaults.stopLossPct,
+                      takeProfitPct: strat.defaults.takeProfitPct,
+                      trailingStopPct: strat.defaults.trailingStopPct,
+                      timeExitDays: strat.defaults.timeExitDays,
+                    }));
+                  }
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Manual (no preset)</option>
+                {BUILT_IN_STRATEGIES.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {selectedStrategyId && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {getStrategyById(selectedStrategyId)?.description}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,8 +1,7 @@
 import useSWR from 'swr';
-import axios from 'axios';
-import { marketDataAPI, indicatorsAPI, tradingAPI } from './api';
+import api, { marketDataAPI, indicatorsAPI, tradingAPI } from './api';
 
-const fetcher = (url: string) => axios.get(url).then(res => res.data);
+const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 // Hook for latest price
 export const useLatestPrice = (symbol?: string) => {
@@ -38,7 +37,7 @@ export const useOHLCV = (symbol?: string, interval: string = '1d') => {
 // Hook for trade signals
 export const useTradeSignals = (symbol?: string) => {
   const { data, error, isLoading } = useSWR(
-    symbol ? `/indicators/signals?symbol=${symbol}` : null,
+    symbol ? `/indicators/signals/${symbol}` : null,
     fetcher,
     { refreshInterval: 30000 } // Refresh every 30 seconds
   );
@@ -55,7 +54,7 @@ export const useTradeSignals = (symbol?: string) => {
 // Hook for all indicators
 export const useIndicators = (symbol?: string) => {
   const { data, error, isLoading } = useSWR(
-    symbol ? `/indicators/all?symbol=${symbol}` : null,
+    symbol ? `/indicators/all/${symbol}` : null,
     fetcher,
     { refreshInterval: 60000 }
   );
@@ -76,9 +75,9 @@ export const usePortfolio = () => {
   );
 
   return {
-    portfolio: data?.portfolio,
-    totalValue: data?.total_value,
-    cashBalance: data?.cash_balance,
+    portfolio: data?.positions || [],
+    totalValue: data?.total_value ?? 0,
+    cashBalance: data?.cash_balance ?? data?.balance ?? 0,
     error,
     isLoading,
     mutate,

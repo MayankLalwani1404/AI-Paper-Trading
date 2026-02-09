@@ -2,33 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-
-const BUILT_IN_STRATEGIES = [
-  {
-    name: 'Trend Following',
-    description: 'Uses moving averages and breakouts to follow strong trends.',
-    exitRules: ['Stop-loss', 'Trailing stop', 'Take-profit'],
-  },
-  {
-    name: 'Momentum RSI',
-    description: 'Buys when RSI is strong but not overbought; sells on weakness.',
-    exitRules: ['Stop-loss', 'Take-profit', 'Time-based exit'],
-  },
-  {
-    name: 'Breakout + Volume',
-    description: 'Targets breakouts with confirming volume strength.',
-    exitRules: ['Stop-loss', 'Trailing stop'],
-  },
-  {
-    name: 'Mean Reversion',
-    description: 'Looks for oversold conditions and reverts to average price.',
-    exitRules: ['Stop-loss', 'Take-profit'],
-  },
-];
+import { useRouter } from 'next/navigation';
+import { BUILT_IN_STRATEGIES } from '@/lib/strategies';
 
 export default function Strategies() {
   const [customStrategy, setCustomStrategy] = useState('');
   const [saved, setSaved] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem('custom_strategy');
@@ -50,10 +30,21 @@ export default function Strategies() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
             {BUILT_IN_STRATEGIES.map((s) => (
-              <div key={s.name} className="bg-white rounded-lg shadow p-6">
+              <div key={s.id} className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-dark mb-2">{s.name}</h2>
                 <p className="text-gray-600 mb-3">{s.description}</p>
-                <div className="text-sm text-gray-500">Exit rules: {s.exitRules.join(', ')}</div>
+                <div className="text-sm text-gray-500 mb-4">
+                  Exit rules: {s.exitRules.join(', ')}
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('selected_strategy', s.id);
+                    router.push('/auto-trade');
+                  }}
+                  className="px-4 py-2 bg-primary text-white rounded-lg"
+                >
+                  Use in Auto‑Trade
+                </button>
               </div>
             ))}
           </div>

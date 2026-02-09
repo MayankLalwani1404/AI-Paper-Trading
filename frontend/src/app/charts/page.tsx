@@ -3,16 +3,16 @@
 import React from 'react';
 import Sidebar from '@/components/Sidebar';
 import PriceChart from '@/components/PriceChart';
-import { useOHLCV } from '@/lib/hooks';
+import { useOHLCV, useSymbols } from '@/lib/hooks';
 import { useState } from 'react';
 
 export default function Charts() {
   const [selectedSymbol, setSelectedSymbol] = useState('AAPL');
   const [selectedInterval, setSelectedInterval] = useState('1d');
   const { data, isLoading } = useOHLCV(selectedSymbol, selectedInterval);
+  const { symbols, isLoading: symbolsLoading } = useSymbols('US');
 
-  const symbols = ['AAPL', 'MSFT', 'GOOGL', 'ADANIPORTS.NS', 'BTCUSDT'];
-  const intervals = ['1m', '5m', '1h', '1d', '1w'];
+  const intervals = ['1m', '5m', '15m', '1h', '1d', '1w'];
 
   return (
     <div className="flex">
@@ -31,11 +31,17 @@ export default function Charts() {
                   onChange={(e) => setSelectedSymbol(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                 >
-                  {symbols.map((sym) => (
-                    <option key={sym} value={sym}>
-                      {sym}
-                    </option>
-                  ))}
+                  {symbolsLoading ? (
+                    <option>Loading symbols...</option>
+                  ) : symbols.length > 0 ? (
+                    symbols.map((sym: any) => (
+                      <option key={sym} value={sym}>
+                        {sym}
+                      </option>
+                    ))
+                  ) : (
+                    <option>AAPL</option>
+                  )}
                 </select>
               </div>
               <div>

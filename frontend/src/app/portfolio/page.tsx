@@ -72,16 +72,17 @@ export default function Portfolio() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {portfolio.map((position: any, index: number) => {
-                      const currentPrice = position.current_price || position.entry_price;
+                      const entryPrice = position.entry_price ?? position.avg_price ?? 0;
+                      const currentPrice = position.current_price ?? entryPrice;
                       const value = position.quantity * currentPrice;
-                      const gainLoss = (currentPrice - position.entry_price) * position.quantity;
-                      const returnPct = ((currentPrice - position.entry_price) / position.entry_price) * 100;
+                      const gainLoss = entryPrice > 0 ? (currentPrice - entryPrice) * position.quantity : 0;
+                      const returnPct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
 
                       return (
                         <tr key={index} className="hover:bg-light transition-colors">
                           <td className="px-6 py-4 font-semibold text-dark">{position.symbol}</td>
                           <td className="px-6 py-4 text-gray-700">{position.quantity}</td>
-                          <td className="px-6 py-4 text-gray-700">${position.entry_price.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-gray-700">${entryPrice.toFixed(2)}</td>
                           <td className="px-6 py-4 text-gray-700">${currentPrice.toFixed(2)}</td>
                           <td className="px-6 py-4 text-gray-700">${value.toFixed(2)}</td>
                           <td className={`px-6 py-4 font-semibold ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>

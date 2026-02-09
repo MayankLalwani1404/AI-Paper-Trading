@@ -65,20 +65,29 @@ export default function Home() {
               <p className="text-gray-500">Loading positions...</p>
             ) : topGainers.length > 0 ? (
               <div className="space-y-3">
-                {topGainers.map((position: any, index: number) => (
+                {topGainers.map((position: any, index: number) => {
+                  const entryPrice = position.entry_price ?? position.avg_price ?? 0;
+                  const hasGain = typeof position.gain === 'number';
+                  const gainValue = hasGain ? position.gain : 0;
+                  return (
                   <div key={index} className="flex items-center justify-between p-3 bg-light rounded">
                     <div>
                       <p className="font-semibold text-dark">{position.symbol}</p>
-                      <p className="text-sm text-gray-600">{position.quantity} shares @ ${position.entry_price}</p>
+                      <p className="text-sm text-gray-600">
+                        {position.quantity} shares @ ${entryPrice.toFixed(2)}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-dark">${(position.quantity * position.entry_price).toFixed(2)}</p>
-                      <p className={`text-sm ${position.gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {position.gain >= 0 ? '+' : ''}{position.gain.toFixed(2)}%
+                      <p className="font-semibold text-dark">
+                        ${(position.quantity * entryPrice).toFixed(2)}
+                      </p>
+                      <p className={`text-sm ${hasGain && gainValue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {hasGain ? `${gainValue >= 0 ? '+' : ''}${gainValue.toFixed(2)}%` : 'N/A'}
                       </p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-gray-500">No open positions</p>

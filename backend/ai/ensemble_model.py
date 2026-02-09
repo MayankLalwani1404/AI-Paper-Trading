@@ -37,9 +37,10 @@ class EnsembleModel:
         self.feature_importance = {}
         
         # Weights for ensemble (can be tuned)
-        self.cnn_weight = 0.25
-        self.lstm_weight = 0.35
-        self.xgb_weight = 0.40
+        self.cnn_weight = 0.20
+        self.lstm_weight = 0.20
+        self.xgb_weight = 0.30
+        self.lgb_weight = 0.30
         
         logger.info(f"Ensemble Model {version} initialized")
     
@@ -98,16 +99,22 @@ class EnsembleModel:
         }
         
         valid_sets = [train_data]
+        valid_names = ['train']
+        callbacks = []
+        
         if X_val is not None:
             val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
             valid_sets.append(val_data)
+            valid_names.append('valid')
+            callbacks = [lgb.early_stopping(20), lgb.log_evaluation(0)]
         
         self.lgb_model = lgb.train(
             params,
             train_data,
             num_boost_round=300,
             valid_sets=valid_sets,
-            early_stopping_rounds=20,
+            valid_names=valid_names,
+            callbacks=callbacks,
         )
         
         logger.info("LightGBM model trained successfully")
@@ -129,6 +136,7 @@ class EnsembleModel:
             'cnn_prob': None,
             'lstm_prob': None,
             'xgb_prob': None,
+            'lgb_prob': None,
             'ensemble_prob': None,
         }
         
@@ -176,6 +184,16 @@ class EnsembleModel:
             except Exception as e:
                 logger.warning(f"XGBoost prediction failed: {e}")
                 xgb_pred = np.array([0.33, 0.34, 0.33])
+
+        # === LightGBM: Technical indicators ===
+        lgb_pred = None
+        if self.lgb_model is not None:
+            try:
+                lgb_pred = self.lgb_model.predict(ta_features.reshape(1, -1))[0]
+                details['lgb_prob'] = lgb_pred.tolist()
+            except Exception as e:
+                logger.warning(f"LightGBM prediction failed: {e}")
+                lgb_pred = np.array([0.33, 0.34, 0.33])
         
         # === Ensemble voting ===
         ensemble_probs = np.zeros(3)
@@ -192,6 +210,10 @@ class EnsembleModel:
         if xgb_pred is not None:
             ensemble_probs += xgb_pred * self.xgb_weight
             total_weight += self.xgb_weight
+
+        if lgb_pred is not None:
+            ensemble_probs += lgb_pred * self.lgb_weight
+            total_weight += self.lgb_weight
         
         # Normalize
         if total_weight > 0:
